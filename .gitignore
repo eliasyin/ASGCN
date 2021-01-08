@@ -1,1 +1,5 @@
 glove/*
+__pycache__/*
+models/__pycache__/*
+layers/__pycache__/*
+.vscode/launch.json

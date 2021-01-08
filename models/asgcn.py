@@ -33,7 +33,8 @@ class ASGCN(nn.Module):
     def __init__(self, embedding_matrix, opt):
         super(ASGCN, self).__init__()
         self.opt = opt
-        self.embed = nn.Embedding.from_pretrained(torch.tensor(embedding_matrix, dtype=torch.float))
+        # freeze=False : pretrained weight can be updated during training
+        self.embed = nn.Embedding.from_pretrained(torch.tensor(embedding_matrix, dtype=torch.float), freeze=False)
         self.text_lstm = DynamicLSTM(opt.embed_dim, opt.hidden_dim, num_layers=1, batch_first=True, bidirectional=True)
         self.gc1 = GraphConvolution(2*opt.hidden_dim, 2*opt.hidden_dim)
         self.gc2 = GraphConvolution(2*opt.hidden_dim, 2*opt.hidden_dim)

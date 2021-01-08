@@ -53,6 +53,8 @@ class DynamicLSTM(nn.Module):
         :param x_len: numpy/tensor list
         :return:
         """
+        # x.shape : (batch_size,  max(batch_text_indices), embed_dim)
+        # x_len.shape : (batch_size,)
         """sort"""
         x_sort_idx = torch.argsort(-x_len)
         x_unsort_idx = torch.argsort(x_sort_idx).long()

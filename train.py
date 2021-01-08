@@ -7,6 +7,8 @@ import random
 import numpy
 import torch
 import torch.nn as nn
+from torch.utils.tensorboard import SummaryWriter
+from time import strftime, localtime
 from bucket_iterator import BucketIterator
 from sklearn import metrics
 from data_utils import ABSADatesetReader
@@ -51,6 +53,11 @@ class Instructor:
                     torch.nn.init.uniform_(p, a=-stdv, b=stdv)
 
     def _train(self, criterion, optimizer):
+        time = strftime("%y-%m-%d_%H%M%S", localtime())
+        writer_dir = os.path.join("/home/ycf19/IJCAI/tb_runs", "asgcn-{}".format(time))
+        if not os.path.exists(writer_dir):
+            os.mkdir(writer_dir)
+        writer = SummaryWriter(log_dir=writer_dir)
         max_test_acc = 0
         max_test_f1 = 0
         global_step = 0
@@ -91,6 +98,23 @@ class Instructor:
                             torch.save(self.model.state_dict(), 'state_dict/'+self.opt.model_name+'_'+self.opt.dataset+'.pkl')
                             print('>>> best model saved.')
                     print('loss: {:.4f}, acc: {:.4f}, test_acc: {:.4f}, test_f1: {:.4f}'.format(loss.item(), train_acc, test_acc, test_f1))
+                    writer.add_scalar("Loss/train", loss.item(),
+                                      global_step*self.opt.log_step)
+                    writer.add_scalar("Accuracy/train", train_acc, global_step*self.opt.log_step)
+                    writer.add_scalar("Accuracy/test", test_acc,
+                                      global_step*self.opt.log_step)
+                    for name, param in self.model.named_parameters():
+                        if param is None:
+                            continue
+                        if numpy.isnan(numpy.sum(param.cpu().data.numpy())):
+                            continue 
+                        writer.add_histogram(
+                            name, param.cpu().data.numpy(), global_step*self.opt.log_step)
+                        if param.grad is None:
+                            continue
+                        writer.add_histogram(
+                            "{}-grad".format(name), param.grad.cpu().data.numpy(), global_step*self.opt.log_step)
+
             if increase_flag == False:
                 continue_not_increase += 1
                 if continue_not_increase >= 5:
@@ -98,6 +122,7 @@ class Instructor:
                     break
             else:
                 continue_not_increase = 0    
+        writer.close()
         return max_test_acc, max_test_f1
 
     def _evaluate_acc_f1(self):
@@ -158,13 +183,14 @@ if __name__ == '__main__':
     # Hyper Parameters
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_name', default='lstm', type=str)
-    parser.add_argument('--dataset', default='twitter', type=str, help='twitter, rest14, lap14, rest15, rest16')
+    parser.add_argument('--dataset', default='rest16', type=str,
+                        help='twitter, rest14, lap14, rest15, rest16')
     parser.add_argument('--optimizer', default='adam', type=str)
     parser.add_argument('--initializer', default='xavier_uniform_', type=str)
     parser.add_argument('--learning_rate', default=0.001, type=float)
     parser.add_argument('--l2reg', default=0.00001, type=float)
     parser.add_argument('--num_epoch', default=100, type=int)
-    parser.add_argument('--batch_size', default=32, type=int)
+    parser.add_argument('--batch_size', default=5, type=int)
     parser.add_argument('--log_step', default=5, type=int)
     parser.add_argument('--embed_dim', default=300, type=int)
     parser.add_argument('--hidden_dim', default=300, type=int)
